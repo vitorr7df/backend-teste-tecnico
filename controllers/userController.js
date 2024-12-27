@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const bcrypt = require('bcryptjs');
 
 exports.getAllUsers = async (req, res) => {
     try {
@@ -10,15 +11,19 @@ exports.getAllUsers = async (req, res) => {
 };
 
 exports.createUser = async (req, res) => {
-    const { name, email } = req.body;
+    const { name, email, password } = req.body;
+
+    // Criptografar a senha
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
     try {
-        const [result] = await db.query('INSERT INTO users (name, email) VALUES (?, ?)', [name, email]);
+        const [result] = await db.query('INSERT INTO users (name, email, password) VALUES (?, ?, ?)', [name, email, hashedPassword]);
         res.status(201).json({ id: result.insertId, name, email });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 };
-
 exports.updateUser = async (req, res) => {
     const { id } = req.params;
     const { name, email } = req.body;
