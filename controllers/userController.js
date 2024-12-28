@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 exports.getAllUsers = async (req, res) => {
     try {
@@ -40,6 +41,43 @@ exports.deleteUser = async (req, res) => {
     try {
         await db.query('DELETE FROM users WHERE id = ?', [id]);
         res.status(200).json({ message: 'Usuário deletado com sucesso' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+exports.login = async (req, res) => {
+    const { email, password } = req.body;
+
+    try {
+        // Verificando se o usuário existe
+        const [rows] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+
+        if (rows.length === 0) {
+            return res.status(400).json({ error: 'Usuário não encontrado' });
+        }
+
+        // Verificando a senha
+        const user = rows[0];
+        const isMatch = await bcrypt.compare(password, user.password);
+
+        if (!isMatch) {
+            return res.status(400).json({ error: 'Senha incorreta' });
+        }
+
+        // Gerando o token JWT
+        const token = jwt.sign(
+            { id: user.id, email: user.email },
+            'your-secret-key',  // Altere para uma chave secreta mais segura
+            { expiresIn: '1h' } // Token expira após 1 hora
+        );
+
+        // Retornando o token e dados do usuário
+        res.status(200).json({
+            message: 'Login bem-sucedido',
+            token,
+            user: { id: user.id, name: user.name, email: user.email }
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
